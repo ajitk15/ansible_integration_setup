@@ -1,0 +1,23 @@
+---
+- name: Configure MQ Installation Pre-requeties
+  hosts: all
+  become: true
+  tasks:
+  - name: Set sysctl parmeters as per IBM recomendation
+    sysctl:
+      name: "{{item.name}}"
+      value: "{{item.value}}"
+      state: present
+    loop:
+      - { name: "kernel.shmmni", value: "4096" }
+      - { name: "kernel.shmall", value: "2097152" }
+      - { name: "kernel.shmmax", value: "268435456" }
+      - { name: "kernel.sem", value: "32 4096 32 128" }
+    notify: Reload sysctl
+
+  handlers:
+  - name: Reload sysctl
+    command: sysctl -p
+
+
+  

@@ -2,9 +2,61 @@
 - name: Configure MQ Installation Pre-requeties
   hosts: all
   become: true
+  vars:
+    ibm_download_path: 'https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqadv/'
+    ibm_mq_package: '9.2.0.0-IBM-MQTRIAL-LinuxX64.tar.gz'
   tasks:
+  - name: Create mqm group
+    ansible.builtin.group:
+      name: mqm
+      gid: 5001
+
+  - name: Create mqm user
+    ansible.builtin.user:
+      name: mqm
+      group: mqm
+      uid: 5001
+      home: /home/mqm
+      shell: /bin/bash
+
+  - name: Create mqclient group
+    ansible.builtin.group:
+      name: mqclient
+      gid: 5004
+      state: present
+
+  - name: Create partition
+    ansible.builtin.parted:
+      device: /dev/mapper/cs-root# Replace /dev/sdX with the appropriate device
+      number: 1
+      state: present
+      part_type: gpt
+      label: gpt
+      name: primary
+      flags: []
+      align: none
+      unit: MiB
+      mklabel: yes
+      align: optimal
+      start: 1
+      end: 100%
+
+  - name: Format partition
+    ansible.builtin.filesystem:
+      fstype: ext4  # Adjust the filesystem type as needed
+      dev: /dev/mapper/cs-root  # Replace /dev/sdX1 with the partition created in the previous step
+      state: present
+
+  - name: Mount filesystem
+    ansible.builtin.mount:
+      src: /dev/mapper/cs-root  # Replace /dev/sdX1 with the partition created in the first step
+      path: /opt/mqm
+      fstype: ext4  # Adjust the filesystem type as needed
+      opts: defaults
+      state: mounted
+
   - name: Set sysctl parmeters as per IBM recomendation
-    sysctl:
+    ansible.builtin.sysctl:
       name: "{{item.name}}"
       value: "{{item.value}}"
       state: present
@@ -14,6 +66,32 @@
       - { name: "kernel.shmmax", value: "268435456" }
       - { name: "kernel.sem", value: "32 4096 32 128" }
     notify: Reload sysctl
+    when: false
+
+  - name: Add user limits for mqm user
+    ansible.builtin.lineinfile:
+      path: /etc/security/limits.conf
+      line: "{{item}}"
+    loop:
+      - 'mqm       hard  nofile     10240'
+      - 'mqm       soft  nofile     10240'
+      - 'mqm       hard  nproc      4096'
+      - 'mqm       soft  nproc      4096'
+    when: false
+
+  - name: Download MQ package from repository
+    ansible.builtin.get_url:
+      url: '{{ibm_download_path}}{{ibm_mq_package}}'
+      dest: /tmp/mqpackage
+      force: false
+      mode: 0755
+    when: false
+
+  - name: Extract MQ Package
+    ansible.builtin.unarchive:
+      name: /tmp/mqpackage/9.2.0.0-IBM-MQTRIAL-LinuxX64.tar.gz
+      path: /tmp/mqpackage
+    when: false
 
   handlers:
   - name: Reload sysctl

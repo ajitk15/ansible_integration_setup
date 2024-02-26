@@ -1,0 +1,25 @@
+---
+- name: Client Inital setup
+  hosts: "{{host}}"
+  remote_user: "{{ruser}}"
+  vars:
+    - ansibleuser_pass: "{{apass}}"
+  tasks:
+  - name: Create ansibleuser
+    ansible.builtin.user:
+      name: ansibleuser
+      shell: /bin/bash
+      password: "{{ansibleuser_pass}}"
+      home: /home/ansibleuser
+      uid: 5005
+
+  - name: Add ansibleuser to sudo users
+    ansible.builtin.copy:
+      dest: "/etc/sudoers.d/ansibleuser"
+      content: "ansibleuser ALL=(ALL) NOPASSWD: ALL"
+
+  - name: copy SSH Key to remote machine
+    ansible.builtin.authorized_key:
+     user: ansibleuser
+     key: "{{lookup('file', '/home/ansibleuser/.ssh/id_rsa.pub')}}"
+     state: present

@@ -1,14 +1,12 @@
 ---
 - name: Client Inital setup
   hosts: "{{host}}"
-  vars:
-    - ansibleuser_pass: "Pollaaji#1"
   tasks:
   - name: Create ansibleuser
     ansible.builtin.user:
       name: ansibleuser
       shell: /bin/bash
-      password: "{{ansibleuser_pass}}"
+      password: "{{user_pass | password_hash('sha512')}}"
       home: /home/ansibleuser
       uid: 5005
 

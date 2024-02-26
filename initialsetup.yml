@@ -1,9 +1,8 @@
 ---
 - name: Client Inital setup
   hosts: "{{host}}"
-  remote_user: "{{ruser}}"
   vars:
-    - ansibleuser_pass: "{{apass}}"
+    - ansibleuser_pass: "Pollaaji#1"
   tasks:
   - name: Create ansibleuser
     ansible.builtin.user:
@@ -23,3 +22,18 @@
      user: ansibleuser
      key: "{{lookup('file', '/home/ansibleuser/.ssh/id_rsa.pub')}}"
      state: present
+
+  - name: sshd diasble password authentiacaion
+    ansible.builtin.lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: '^PasswordAuthentication'
+      line: 'PasswordAuthentication no'
+      state: present
+      backup: yes
+    notify: restart ssh
+
+  handlers:
+  - name: restart ssh
+    service:
+      name: sshd
+      state: restarted

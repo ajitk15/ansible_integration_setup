@@ -7,7 +7,7 @@
   tasks:
     - name: get incident sysid
       uri:
-        url: "{{ sn_host }}api/now/table/incident?sysparm_query=number=INC0010011&sysparm_fields=sys_id"
+        url: "{{ sn_host }}/api/now/table/incident?sysparm_query=number=INC0010011&sysparm_fields=sys_id"
         method: GET
         user: "{{ sn_username }}"
         password: "{{ sn_password }}"
@@ -40,7 +40,7 @@
 
     - name: Update Incident Work Notes
       uri:
-        url: "{{ sn_host }}api/now/table/incident/{{ result1.json.result[0].sys_id }}"
+        url: "{{ sn_host }}/api/now/table/incident/{{ result1.json.result[0].sys_id }}"
         method: PATCH
         user: "{{ sn_username }}"
         password: "{{ sn_password }}"

@@ -1,0 +1,55 @@
+---
+- name: Update ServiceNow Incident Work Notes using REST API call only
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: get incident sysid
+      uri:
+        url: "{{ sn_host }}api/now/table/incident?sysparm_query=number=INC0010011&sysparm_fields=sys_id"
+        method: GET
+        user: "{{ sn_username }}"
+        password: "{{ sn_password }}"
+      register: result1
+
+    - name: Capture Playbook Output
+      set_fact:
+        playbook_output: []
+
+    - name: update
+      shell: uptime
+      register: uptime_result
+
+    - name: Append Output to Playbook Output
+      set_fact:
+        playbook_output: "{{ playbook_output + [result1 | to_nice_json] + ['\n{=========>============}\n'] + [uptime_result | to_nice_json] }}"
+
+    - name: Write Output to File
+      copy:
+        content: "{{ playbook_output | to_nice_json }}"
+        dest: "playbook_output.json"
+
+    - name: Display Response
+      debug:
+        var: playbook_output
+
+    - name: Construct JSON Payload
+      set_fact:
+        payload: '{"work_notes": {{ playbook_output | to_json }}}'
+
+    - name: Update Incident Work Notes
+      uri:
+        url: "{{ sn_host }}api/now/table/incident/{{ result1.json.result[0].sys_id }}"
+        method: PATCH
+        user: "{{ sn_username }}"
+        password: "{{ sn_password }}"
+        headers:
+          Content-Type: application/json
+        body: "{{ payload }}"
+        body_format: json
+      register: result
+
+    - name: debug
+      debug:
+        var: payload

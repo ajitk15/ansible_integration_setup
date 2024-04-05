@@ -1,0 +1,44 @@
+---
+- name: Execute MQSC commands and redirect output to file
+  hosts: localhost
+  vars:
+    date_time: "{{ '%Y-%m-%d %H:%M:%S' | strftime(ansible_date_time.epoch) }}"
+  tasks:
+  - name: Generate file name
+    set_fact: 
+      file_path: "/tmp/mq_config_{{ansible_date_time.iso8601}}.csv"
+
+  - name: get mq version
+    shell: dspmqver | grep Version | awk '{print $2}'
+    register: mq_ver 
+
+  - name: get list of queue managers
+    shell: dspmq | awk -F'[()]' '{print $2}'
+    register: qm_list
+
+  - name: verify qm status
+    shell: dspmq -m {{item}} | awk -F'[()]' '{print $4}'
+    with_items: "{{qm_list.stdout_lines}}"
+    register: qm_status
+ 
+  - name: Check if listener exists
+    shell: echo "DISPLAY LISTENER(SYSTEM.DEFAULT.LISTENER.TCP) CONTROL" | runmqsc {{item.item}} | grep CONTROL | grep -v ':' | wc -l
+    register: lchl
+    when: item.stdout == 'Running'
+    loop: "{{qm_status.results}}"
+
+  - name: Execute MQSC command if listener exists
+    shell: echo 'DISPLAY LISTENER(SYSTEM.DEFAULT.LISTENER.TCP) CONTROL' | runmqsc {{item.item.item}} | grep CONTROL | grep -v ':' | awk -F'[()]' '{print $4}'
+    when: item.item.stdout == 'Running'
+    loop: "{{lchl.results}}"
+    loop_control:
+       label: "{{ item.item }}"
+    register: chlcontrl
+    
+  - name: Write to file
+    lineinfile:
+      create: yes
+      path: "{{file_path}}"
+      line: "{{date_time}}|{{inventory_hostname}}|{{mq_ver.stdout | default('NA')}}|{{item.item.item.item | default('NA') }}|{{item.stdout | default('NA')}}"
+    with_items: "{{ chlcontrl.results }}"
+

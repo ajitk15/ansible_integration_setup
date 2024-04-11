@@ -1,6 +1,8 @@
 ---
 - name: Client Inital setup
   hosts: "{{host}}"
+  become: true
+  remote_user: "{{initialsetup.yml}}"
   tasks:
   - name: Create ansibleuser
     ansible.builtin.user:
